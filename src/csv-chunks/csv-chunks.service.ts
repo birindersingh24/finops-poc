@@ -7,12 +7,12 @@ import { pipeline, FeatureExtractionPipeline } from '@huggingface/transformers';
 export class CsvChunkService {
   private extractor: FeatureExtractionPipeline;
 
-  async onModuleInit() {
-    this.extractor = await pipeline(
-      'feature-extraction',
-      'Xenova/all-MiniLM-L6-v2',
-    );
-  }
+  // async onModuleInit() {
+  //   this.extractor = await pipeline(
+  //     'feature-extraction',
+  //     'Xenova/all-MiniLM-L6-v2',
+  //   );
+  // }
   createChunks(): Promise<string[]> {
     try {
       return new Promise((resolve, reject) => {
@@ -23,11 +23,9 @@ export class CsvChunkService {
           .on('error', reject)
           .on('data', (row) => {
             let rowList: string = '';
-
-            rowList =
-              `${row.ProviderName} ${row.ServiceName} in ${row.RegionName}: ${row.ChargeDescription}. ` +
-              `Cost ${row.EffectiveCost} ${row.BillingCurrency} on ${row.ChargePeriodStart.slice(0, 10)}.`;
-
+            for (const key in row) {
+              rowList = rowList + `${key}: ${row[key]},`;
+            }
             results.push(rowList);
           })
           .on('end', () => resolve(results));
@@ -39,8 +37,13 @@ export class CsvChunkService {
 
   async embeddingChunks(chunks: string[], batchSize = 32): Promise<number[][]> {
     try {
+      this.extractor = await pipeline(
+        'feature-extraction',
+        'Xenova/all-MiniLM-L6-v2',
+      );
       const vectors: number[][] = [];
       for (let i = 0; i < chunks.length; i += batchSize) {
+
         const batch = chunks.slice(i, i + batchSize);
         const output = await this.extractor(batch, {
           pooling: 'mean',
